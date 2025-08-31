@@ -1,5 +1,5 @@
 import React from "react";
-import GPXParser from "gpxparser";
+import { gpx } from "@tmcw/togeojson";
 
 export default function GPXUploader({ onLoad }) {
   const handleFile = (e) => {
@@ -7,13 +7,29 @@ export default function GPXUploader({ onLoad }) {
     if (file) {
       const reader = new FileReader();
       reader.onload = () => {
-        const gpx = new GPXParser();
-        gpx.parse(reader.result);
-        const track = gpx.tracks[0];
-        if (track && track.points.length) {
-          onLoad(track.points);
-        } else {
-          alert("No track points found in this GPX file.");
+        try {
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(reader.result, "application/xml");
+          const geojson = gpx(xml);
+          if (
+            !geojson.features ||
+            geojson.features.length === 0 ||
+            !geojson.features[0].geometry ||
+            !geojson.features[0].geometry.coordinates
+          ) {
+            alert("No valid track found in this GPX file.");
+            return;
+          }
+          // Use the first LineString feature (usually the track)
+          const coords = geojson.features[0].geometry.coordinates;
+          const points = coords.map(([lon, lat, ele]) => ({
+            lat,
+            lon,
+            ele,
+          }));
+          onLoad(points);
+        } catch (err) {
+          alert("Failed to parse GPX file.");
         }
       };
       reader.readAsText(file);

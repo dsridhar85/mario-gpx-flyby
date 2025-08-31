@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Polyline, Marker } from "react-leaflet";
+import React, { useEffect, useRef, useState } from "react";
+import { MapContainer, TileLayer, Polyline, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -15,7 +15,7 @@ import marioRunDown2 from "../assets/mario-run-down-2.png";
 
 // Helper to determine direction
 function getDirection(prev, next) {
-  if (!prev || !next) return "down";
+  //if (!prev || !next) return "down";
   const dx = next.lon - prev.lon;
   const dy = next.lat - prev.lat;
   if (Math.abs(dx) > Math.abs(dy)) {
@@ -32,9 +32,27 @@ const marioSprites = {
   down: [marioRunDown1, marioRunDown2]
 };
 
-export default function MapDisplay({ points, marioIndex }) {
+// Helper component to control map center and zoom
+function MapController({ curr, tracedPoints, isComplete }) {
+  const map = useMap();
+  useEffect(() => {
+    if (isComplete && tracedPoints.length > 1) {
+      // Fit bounds to all traced points at end
+      const bounds = L.latLngBounds(tracedPoints.map(p => [p.lat, p.lon]));
+      map.fitBounds(bounds, { padding: [40, 40] });
+    } else if (curr) {
+      // Keep Mario near center as navigation moves
+      map.setView([curr.lat, curr.lon]);
+    }
+  }, [curr, tracedPoints, isComplete, map]);
+  return null;
+}
+
+export default function MapDisplay({ points, marioIndex, bounds }) {
   const [frame, setFrame] = useState(0);
   const [isHopping, setIsHopping] = useState(false);
+  const [showComplete, setShowComplete] = useState(false);
+
 
   useEffect(() => {
     // Running frame alternates every 6 steps for animation
@@ -53,6 +71,25 @@ export default function MapDisplay({ points, marioIndex }) {
       setTimeout(() => setIsHopping(false), 350); // hop duration
     }
   }, [marioIndex, points.length]);
+
+  useEffect(() => {
+    // Show "activity complete" overlay at end
+    if (points.length && marioIndex >= points.length - 1) {
+      setShowComplete(true);
+    } else {
+      setShowComplete(false);
+    }
+  }, [marioIndex, points.length]);
+  // Fit bounds on initial load
+
+  // Use ref to avoid resetting map on every render
+  const mapRef = useRef();
+
+  useEffect(() => {
+    if (mapRef.current && bounds) {
+      mapRef.current.fitBounds(bounds, { padding: [40, 40] });
+    }
+  }, [bounds]);
 
   if (!points.length) return null;
   const prev = points[marioIndex - 1] || points[marioIndex];
@@ -85,16 +122,54 @@ export default function MapDisplay({ points, marioIndex }) {
     lon + (offset[0] * 0.000013)
   ];
 
+  // Only trace the path up to Mario's current position
+  const tracedPoints = points.slice(0, marioIndex + 1);
+
+  // If near the end, zoom out to show all traced path
+  const isComplete = marioIndex >= points.length - 1;
+
   return (
-    <div style={{ height: 400, marginTop: 16 }}>
-      <MapContainer center={[curr.lat, curr.lon]} zoom={15} style={{ height: "100%" }}>
+    <div style={{ height: 400, marginTop: 16, position: "relative" }}>
+      <MapContainer
+        center={[curr.lat, curr.lon]}
+        zoom={15}
+        style={{ height: "100%" }}
+        scrollWheelZoom={false}
+        zoomControl={false}
+        whenCreated={mapInstance => { mapRef.current = mapInstance; }}
+      >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <Polyline positions={points.map(p => [p.lat, p.lon])} color="red" />
+        <Polyline positions={tracedPoints.map(p => [p.lat, p.lon])} color="red" />
         <Marker
           position={toLeaflet(curr.lat, curr.lon, hopOffset)}
           icon={marioIcon}
         />
+        <MapController curr={curr} tracedPoints={tracedPoints} isComplete={isComplete} />
       </MapContainer>
+      {showComplete && (
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 24,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.45)",
+            color: "#fff",
+            fontSize: 32,
+            fontWeight: "bold",
+            zIndex: 1000,
+            borderRadius: 12,
+            padding: "16px 32px",
+            width: "fit-content",
+            margin: "0 auto"
+          }}
+        >
+          Activity Complete
+        </div>
+      )}
     </div>
   );
 }

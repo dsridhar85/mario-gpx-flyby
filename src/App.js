@@ -9,6 +9,7 @@ function App() {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const timerRef = useRef();
+  const [bounds, setBounds] = useState(null); // NEW
 
   useEffect(() => {
     if (playing && points.length) {
@@ -21,7 +22,19 @@ function App() {
   }, [playing, speed, points]);
 
   // Reset Mario if new GPX loaded
-  useEffect(() => setMarioIdx(0), [points]);
+  useEffect(() => {
+    setMarioIdx(0);
+    if (points.length) {
+      const lats = points.map(p => p.lat);
+      const lons = points.map(p => p.lon);
+      setBounds([
+        [Math.min(...lats), Math.min(...lons)],
+        [Math.max(...lats), Math.max(...lons)]
+      ]);
+    } else {
+      setBounds(null);
+    }
+  }, [points]);
 
   return (
     <div style={{ padding: "1rem" }}>
@@ -33,7 +46,7 @@ function App() {
         speed={speed}
         onSpeed={setSpeed}
       />
-      <MapDisplay points={points} marioIndex={marioIdx} />
+      <MapDisplay points={points} marioIndex={marioIdx} bounds={bounds}/>
       <p style={{marginTop: '2rem'}}>Upload a .gpx file of your run, then press Play!</p>
     </div>
   );
