@@ -9,7 +9,7 @@ export default function Controls({ playing, onPlayPause, speed, onSpeed }) {
         <input
           type="range"
           min="1"
-          max="100"
+          max="200"
           value={speed}
           onChange={e => onSpeed(Number(e.target.value))}
           style={{ verticalAlign: "middle" }}

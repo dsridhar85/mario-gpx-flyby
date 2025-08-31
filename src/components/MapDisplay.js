@@ -98,10 +98,10 @@ export default function MapDisplay({ points, marioIndex, bounds }) {
 
   const direction = getDirection(prev, next);
   const marioIcon = new L.Icon({
-    iconUrl: marioSprites[direction][frame],
-    iconSize: [40, 40],
-    iconAnchor: [20, 40],
-    className: "mario-icon"
+      iconUrl: marioSprites[direction][frame],
+      iconSize: [40, 40],
+      iconAnchor: [20, 40],
+      className: "mario-icon"
   });
 
   // Offset Mario for hop animation
